@@ -278,10 +278,11 @@ object Task {
 
   def tasksById(tasks: Iterable[Task]): Map[Task.Id, Task] = tasks.iterator.map(task => task.taskId -> task).toMap
 
-  case class Id(idString: String) {
+  case class Id(idString: String) extends Comparable[Id] {
     lazy val mesosTaskId: MesosProtos.TaskID = MesosProtos.TaskID.newBuilder().setValue(idString).build()
     lazy val appId: PathId = Id.appId(idString)
     override def toString: String = s"task [$idString]"
+    override def compareTo(o: Id): Int = idString.compareTo(o.idString)
   }
 
   object Id {

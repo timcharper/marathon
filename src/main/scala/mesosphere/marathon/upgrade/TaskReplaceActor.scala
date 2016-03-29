@@ -13,7 +13,7 @@ import org.apache.mesos.Protos.TaskID
 import org.apache.mesos.SchedulerDriver
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
+import scala.collection.{ SortedSet, mutable }
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
@@ -32,7 +32,7 @@ class TaskReplaceActor(
   val versionString = app.version.toString
   var healthy = Set.empty[Task.Id]
   var newTasksStarted: Int = 0
-  var oldTaskIds = tasksToKill.map(_.taskId).toSet
+  var oldTaskIds = tasksToKill.map(_.taskId).to[SortedSet]
   val toKill = oldTaskIds.to[mutable.Queue]
   var maxCapacity = (app.instances * (1 + app.upgradeStrategy.maximumOverCapacity)).toInt
   var outstandingKills = Set.empty[Task.Id]
@@ -178,19 +178,25 @@ object TaskReplaceActor {
     var maxCapacity = (app.instances * (1 + app.upgradeStrategy.maximumOverCapacity)).toInt
     var nrToKillImmediately = math.max(0, runningTasksCount - minHealthy)
 
-    if (nrToKillImmediately == 0 && maxCapacity <= runningTasksCount) {
+    if (minHealthy == maxCapacity) {
       if (app.isResident) {
-        log.info("adjusting nrToKillImmediately to 1 in order to prevent overCapacity for resident app")
-        nrToKillImmediately = 1
+        // Kill enough tasks so that we end up with end up with one task below minHealthy.
+        // TODO: We need to do this also while restarting, since the kill could get lost.
+        nrToKillImmediately = runningTasksCount - minHealthy + 1
+        log.info(
+          "maxCapacity == minHealthy for resident app: " +
+            s"adjusting nrToKillImmediately to $nrToKillImmediately in order to prevent over-capacity for resident app"
+        )
       }
       else {
-        log.info("increasing maxCapacity by 1 in order to get the restart going")
+        log.info(s"maxCapacity == minHealthy: Allow temporary over-capacity of one task to allow restarting")
         maxCapacity += 1
       }
     }
 
     log.info(s"For minimumHealthCapacity ${app.upgradeStrategy.minimumHealthCapacity} of ${app.id.toString} leave " +
-      s"$minHealthy tasks running, maximum capacity $maxCapacity, killing $nrToKillImmediately tasks immediately")
+      s"$minHealthy tasks running, maximum capacity $maxCapacity, killing $nrToKillImmediately of " +
+      s"$runningTasksCount running tasks immediately")
 
     RestartStrategy(nrToKillImmediately = nrToKillImmediately, maxCapacity = maxCapacity)
   }
