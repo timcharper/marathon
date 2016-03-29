@@ -110,7 +110,7 @@ object MarathonTestHelper {
       .addResources(memResource)
       .addResources(diskResource)
 
-    portsResource.foreach(offerBuilder.addResources(_))
+    portsResource.foreach(offerBuilder.addResources)
 
     offerBuilder
   }
@@ -257,7 +257,7 @@ object MarathonTestHelper {
         status = Task.Status(
           stagedAt = now
         ),
-        networking = Task.HostPorts(Seq(1, 2, 3))
+        networking = Task.Networking(Seq(1, 2, 3))
       )
     }
 

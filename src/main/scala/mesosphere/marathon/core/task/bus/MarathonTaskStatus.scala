@@ -1,13 +1,18 @@
 package mesosphere.marathon.core.task.bus
 
-import org.apache.mesos.Protos.TaskStatus
+import org.apache.mesos.Protos.{ NetworkInfo, TaskStatus }
 
 sealed trait MarathonTaskStatus {
   def terminal: Boolean = false
-
   def mesosStatus: Option[TaskStatus]
-  def mesosHealth: Option[Boolean] = mesosStatus.flatMap { status =>
-    if (status.hasHealthy) Some(status.getHealthy) else None
+
+  def networkInfos: Seq[NetworkInfo] = {
+    mesosStatus.map { status =>
+      import scala.collection.JavaConverters._
+
+      if (status.hasContainerStatus) status.getContainerStatus.getNetworkInfosList.asScala
+      else Seq.empty
+    }.getOrElse(Seq.empty)
   }
 }
 

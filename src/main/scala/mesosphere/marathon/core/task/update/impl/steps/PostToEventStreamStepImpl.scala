@@ -63,14 +63,8 @@ class PostToEventStreamStepImpl @Inject() (
           message = if (status.hasMessage) status.getMessage else "",
           appId = taskId.appId,
           host = task.agentInfo.host,
-          ipAddresses = launched.networking match {
-            case networkInfoList: Task.NetworkInfoList => networkInfoList.addresses.to[Seq]
-            case _                                     => Seq.empty
-          },
-          ports = launched.networking match {
-            case Task.HostPorts(ports) => ports
-            case _                     => Iterable.empty
-          },
+          ipAddresses = launched.networking.addresses,
+          ports = launched.networking.ports,
           version = launched.appVersion.toString,
           timestamp = timestamp.toString
         )

@@ -24,7 +24,6 @@ import org.mockito.Matchers.any
 import org.mockito.Mockito.{ reset, spy, times, verify }
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{ GivenWhenThen, Matchers }
-import org.slf4j.LoggerFactory
 
 import scala.collection._
 
@@ -122,7 +121,7 @@ class TaskTrackerImplTest extends MarathonSpec with Matchers with GivenWhenThen 
     stateOpProcessor.process(TaskStateOp.LaunchEphemeral(task2)).futureValue
     stateOpProcessor.process(TaskStateOp.LaunchEphemeral(task3)).futureValue
 
-    val testAppTasks = call(taskTracker).map(_.marathonTask).map(TaskSerializer.fromProto(_))
+    val testAppTasks = call(taskTracker).map(_.marathonTask).map(TaskSerializer.fromProto)
 
     shouldContainTask(testAppTasks.toSet, task1)
     shouldContainTask(testAppTasks.toSet, task2)
@@ -473,7 +472,7 @@ class TaskTrackerImplTest extends MarathonSpec with Matchers with GivenWhenThen 
     MarathonTestHelper
       .stagedTaskForApp(appId)
       .withAgentInfo(_.copy(host = "host", attributes = Iterable(TextAttribute("attr1", "bar"))))
-      .withNetworking(Task.HostPorts(Iterable(999)))
+      .withNetworking(Task.Networking(ports = Seq(999)))
   }
 
   def makeTaskStatus(task: Task, state: TaskState = TaskState.TASK_RUNNING) = {

@@ -11,10 +11,12 @@ class MarathonTaskFormatTest extends MarathonSpec {
 
   class Fixture {
     val time = Timestamp(1024)
-    val network = MesosProtos.NetworkInfo.newBuilder()
-      .addIpAddresses(MesosProtos.NetworkInfo.IPAddress.newBuilder().setIpAddress("123.123.123.123"))
-      .addIpAddresses(MesosProtos.NetworkInfo.IPAddress.newBuilder().setIpAddress("123.123.123.124"))
-      .build()
+    val networkInfos = Seq(
+      MesosProtos.NetworkInfo.newBuilder()
+        .addIpAddresses(MesosProtos.NetworkInfo.IPAddress.newBuilder().setIpAddress("123.123.123.123"))
+        .addIpAddresses(MesosProtos.NetworkInfo.IPAddress.newBuilder().setIpAddress("123.123.123.124"))
+        .build()
+    )
 
     val taskWithoutIp = new Task.LaunchedEphemeral(
       taskId = Task.Id("/foo/bar"),
@@ -28,7 +30,7 @@ class MarathonTaskFormatTest extends MarathonSpec {
       agentInfo = Task.AgentInfo("agent1.mesos", Some("abcd-1234"), Iterable.empty),
       appVersion = time,
       status = Task.Status(time, None),
-      networking = Task.NetworkInfoList(network))
+      networking = Task.Networking(networkInfos = networkInfos))
 
     val taskWithLocalVolumes = new Task.LaunchedOnReservation(
       taskId = Task.Id("/foo/bar"),

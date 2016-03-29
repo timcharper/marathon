@@ -50,14 +50,11 @@ object TaskSerializer {
       mesosStatus = opt(_.hasStatus, _.getStatus)
     )
 
-    def networking = if (proto.getPortsCount != 0) {
-      Task.HostPorts(proto.getPortsList.iterator().asScala.map(_.intValue()).toVector)
-    }
-    else if (proto.getNetworksCount != 0) {
-      Task.NetworkInfoList(proto.getNetworksList.asScala)
-    }
-    else {
-      Task.NoNetworking
+    def networking = {
+      val ports = proto.getPortsList.iterator().asScala.map(_.intValue()).toVector
+      val networkInfos = proto.getNetworksList.asScala
+
+      Task.Networking(ports, networkInfos)
     }
 
     def launchedTask: Option[Task.Launched] = {
@@ -127,13 +124,8 @@ object TaskSerializer {
       builder.setStagedAt(status.stagedAt.toDateTime.getMillis)
       status.startedAt.foreach(startedAt => builder.setStartedAt(startedAt.toDateTime.getMillis))
       status.mesosStatus.foreach(status => builder.setStatus(status))
-      networking match {
-        case Task.HostPorts(hostPorts) =>
-          builder.addAllPorts(hostPorts.view.map(Integer.valueOf(_)).asJava)
-        case Task.NetworkInfoList(networkInfoList) =>
-          builder.addAllNetworks(networkInfoList.asJava)
-        case Task.NoNetworking => // nothing
-      }
+      builder.addAllPorts(networking.ports.map(Integer.valueOf).asJava)
+      builder.addAllNetworks(networking.networkInfos.asJava)
     }
 
     setId(task.taskId)

@@ -223,7 +223,7 @@ case class MesosStatusUpdateEvent(
   message: String,
   appId: PathId,
   host: String,
-  ipAddresses: Seq[org.apache.mesos.Protos.NetworkInfo.IPAddress],
+  ipAddresses: Iterable[org.apache.mesos.Protos.NetworkInfo.IPAddress],
   ports: Iterable[Int],
   version: String,
   eventType: String = "status_update_event",

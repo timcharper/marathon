@@ -52,7 +52,7 @@ sealed trait Task {
     }
   }
 
-  def ipAddresses: Iterable[MesosProtos.NetworkInfo.IPAddress] = launched.map(_.ipAddresses).getOrElse(Iterable.empty)
+  def ipAddresses: Seq[MesosProtos.NetworkInfo.IPAddress] = launched.map(_.ipAddresses).getOrElse(Seq.empty)
 
   def effectiveIpAddress(app: AppDefinition): String = {
     val maybeContainerIp: Option[String] = ipAddresses.map(_.getIpAddress).headOption
@@ -86,11 +86,13 @@ object Task {
     //scalastyle:off cyclomatic.complexity method.length
     override def update(update: TaskStateOp): TaskStateChange = update match {
       // case 1: now running
-      case TaskStateOp.MesosUpdate(_, MarathonTaskStatus.Running(mesosStatus), now) if !hasStartedRunning =>
+      case TaskStateOp.MesosUpdate(_, taskStatus: MarathonTaskStatus.Running, now) if !hasStartedRunning =>
         val updated = copy(
+          networking = networking.copy(networkInfos = taskStatus.networkInfos),
           status = status.copy(
             startedAt = Some(now),
-            mesosStatus = mesosStatus))
+            mesosStatus = taskStatus.mesosStatus)
+        )
         TaskStateChange.Update(newState = updated, oldState = Some(this))
 
       // case 2: terminal
@@ -101,7 +103,10 @@ object Task {
       case TaskStateOp.MesosUpdate(_, taskStatus, now) =>
         updatedHealthOrState(status.mesosStatus, taskStatus.mesosStatus) match {
           case Some(newStatus) =>
-            val updatedTask = copy(status = status.copy(mesosStatus = Some(newStatus)))
+            val updatedTask = copy(
+              networking = networking.copy(networkInfos = taskStatus.networkInfos),
+              status = status.copy(mesosStatus = Some(newStatus))
+            )
             TaskStateChange.Update(newState = updatedTask, oldState = Some(this))
           case None =>
             log.debug("Ignoring status update for {}. Status did not change.", taskId)
@@ -195,11 +200,14 @@ object Task {
     //scalastyle:off cyclomatic.complexity method.length
     override def update(update: TaskStateOp): TaskStateChange = update match {
       // case 1: now running
-      case TaskStateOp.MesosUpdate(_, MarathonTaskStatus.Running(mesosStatus), now) if !hasStartedRunning =>
+      case TaskStateOp.MesosUpdate(_, taskStatus: MarathonTaskStatus.Running, now) if !hasStartedRunning =>
         val updated = copy(
+          networking = networking.copy(networkInfos = taskStatus.networkInfos),
           status = status.copy(
             startedAt = Some(now),
-            mesosStatus = mesosStatus))
+            mesosStatus = taskStatus.mesosStatus
+          )
+        )
         TaskStateChange.Update(newState = updated, oldState = Some(this))
 
       // case 2: terminal
@@ -215,7 +223,10 @@ object Task {
       // case 3: health or state updated
       case TaskStateOp.MesosUpdate(_, taskStatus, _) =>
         updatedHealthOrState(status.mesosStatus, taskStatus.mesosStatus).map { newStatus =>
-          val updatedTask = copy(status = status.copy(mesosStatus = Some(newStatus)))
+          val updatedTask = copy(
+            networking = networking.copy(networkInfos = taskStatus.networkInfos),
+            status = status.copy(mesosStatus = Some(newStatus))
+          )
           TaskStateChange.Update(newState = updatedTask, oldState = Some(this))
         } getOrElse {
           log.debug("Ignoring status update for {}. Status did not change.", taskId)
@@ -383,12 +394,9 @@ object Task {
 
     def hasStartedRunning: Boolean = status.startedAt.isDefined
 
-    def ports: Iterable[Int] = networking.ports
+    def ports: Seq[Int] = networking.ports
 
-    def ipAddresses: Iterable[MesosProtos.NetworkInfo.IPAddress] = networking match {
-      case list: NetworkInfoList => list.addresses
-      case _                     => Iterable.empty
-    }
+    def ipAddresses: Seq[MesosProtos.NetworkInfo.IPAddress] = networking.addresses
   }
 
   /**
@@ -413,32 +421,12 @@ object Task {
     mesosStatus: Option[MesosProtos.TaskStatus] = None)
 
   /** Info on how to reach the task in the network. */
-  sealed trait Networking {
-    def ports: Iterable[Int]
-  }
-
-  /** The task is reachable via host ports which are bound to [[AgentInfo#host]]. */
-  case class HostPorts(ports: Iterable[Int]) extends Networking
-  object HostPorts {
-    def apply(ports: Int*): HostPorts = HostPorts(ports)
-  }
-
-  /**
-    * The task has been launched with one-IP-per-task settings. The ports can be discovered
-    * by inspecting the [[mesosphere.marathon.state.DiscoveryInfo]] in the [[mesosphere.marathon.state.AppDefinition]].
-    */
-  case class NetworkInfoList(networkInfoList: Iterable[MesosProtos.NetworkInfo]) extends Networking {
+  case class Networking(ports: Seq[Int] = Seq.empty, networkInfos: Seq[MesosProtos.NetworkInfo] = Seq.empty) {
     import scala.collection.JavaConverters._
-    def addresses: Iterable[MesosProtos.NetworkInfo.IPAddress] = networkInfoList.flatMap(_.getIpAddressesList.asScala)
-    override def ports: Iterable[Int] = Iterable.empty
-  }
-  object NetworkInfoList {
-    def apply(networkInfoList: MesosProtos.NetworkInfo*): NetworkInfoList = NetworkInfoList(networkInfoList)
+    def addresses: Seq[MesosProtos.NetworkInfo.IPAddress] = networkInfos.flatMap(_.getIpAddressesList.asScala)
   }
 
-  case object NoNetworking extends Networking {
-    override def ports: Iterable[Int] = Iterable.empty
-  }
+  val NoNetworking = Networking(Seq.empty, Seq.empty)
 
   object Terminated {
     def isTerminated(state: TaskState): Boolean = state match {
