@@ -174,11 +174,13 @@ object TaskReplaceActor {
   private[upgrade] case class RestartStrategy(nrToKillImmediately: Int, maxCapacity: Int)
 
   private[upgrade] def computeRestartStrategy(app: AppDefinition, runningTasksCount: Int): RestartStrategy = {
+    require(runningTasksCount > 0, s"running task count must be >0 but is $runningTasksCount")
+
     val minHealthy = (app.instances * app.upgradeStrategy.minimumHealthCapacity).ceil.toInt
     var maxCapacity = (app.instances * (1 + app.upgradeStrategy.maximumOverCapacity)).toInt
     var nrToKillImmediately = math.max(0, runningTasksCount - minHealthy)
 
-    if (minHealthy == maxCapacity) {
+    if (minHealthy == maxCapacity && runningTasksCount >= maxCapacity) {
       if (app.isResident) {
         // Kill enough tasks so that we end up with end up with one task below minHealthy.
         // TODO: We need to do this also while restarting, since the kill could get lost.
@@ -197,6 +199,9 @@ object TaskReplaceActor {
     log.info(s"For minimumHealthCapacity ${app.upgradeStrategy.minimumHealthCapacity} of ${app.id.toString} leave " +
       s"$minHealthy tasks running, maximum capacity $maxCapacity, killing $nrToKillImmediately of " +
       s"$runningTasksCount running tasks immediately")
+
+    assume(nrToKillImmediately >= 0, s"nrToKillImmediately must be >=0 but is $nrToKillImmediately")
+    assume(maxCapacity > 0, s"maxCapacity must be >0 but is $maxCapacity")
 
     RestartStrategy(nrToKillImmediately = nrToKillImmediately, maxCapacity = maxCapacity)
   }
