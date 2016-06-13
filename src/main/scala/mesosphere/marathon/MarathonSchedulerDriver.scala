@@ -70,7 +70,8 @@ object MarathonSchedulerDriver {
 
     val frameworkInfo = frameworkInfoBuilder.build()
 
-    log.debug("Start creating new driver")
+    log.debug("Start creating new driver with mesos user {}, principal {}",
+      frameworkInfo.getUser: Any, credential.map(_.getPrincipal): Any)
 
     val implicitAcknowledgements = false
     val newDriver: MesosSchedulerDriver = credential match {
