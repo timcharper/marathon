@@ -64,9 +64,11 @@ object AuthDirectives {
   trait ToResponse {
     // TODO - MARATHON-7319 actually implement this!
   }
-  private[AuthDirectives] case object AuthServiceUnavailable extends Rejection
-  private[AuthDirectives] case class NotAuthorized(toResponse: ToResponse) extends Rejection
-  private[AuthDirectives] case class NotAuthenticated(toResponse: ToResponse) extends Rejection
+
+  case class ToResponseString(msg: String) extends ToResponse
+  case object AuthServiceUnavailable extends Rejection
+  case class NotAuthorized(toResponse: ToResponse) extends Rejection
+  case class NotAuthenticated(toResponse: ToResponse) extends Rejection
 
   def handleAuthRejections: PartialFunction[Rejection, Route] = {
     // TODO - MARATHON-7319 actually implement these!

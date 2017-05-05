@@ -402,4 +402,5 @@ object AppNormalization {
       ).asInstanceOf[T]
     case _ => throw SerializationFailedException("withCanonizedIds only applies for App and AppUpdate")
   }
+
 }
